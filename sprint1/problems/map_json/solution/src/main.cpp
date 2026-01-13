@@ -1,12 +1,12 @@
-#include "sdk.h"
-
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <iostream>
 #include <thread>
 
+#include "boost/asio/ip/address.hpp"
 #include "json_loader.h"
 #include "request_handler.h"
+#include "sdk.h"
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -54,11 +54,11 @@ int main(int argc, const char* argv[]) {
         http_handler::RequestHandler handler{game};
 
         // 5. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
-        /*
+        const int port = 8080;
+        const auto address = net::ip::make_address("0.0.0.0");
         http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, auto&& send) {
             handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
-        */
 
         // Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
         std::cout << "Server has started..."sv << std::endl;

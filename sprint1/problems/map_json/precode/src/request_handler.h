@@ -1,16 +1,39 @@
 #pragma once
 #include "http_server.h"
 #include "model.h"
+#include "boost_json.cpp"
+#include <string_view>
 
 namespace http_handler {
 namespace beast = boost::beast;
 namespace http = beast::http;
 
+using namespace std::literals;
+
+struct ContentType {
+    ContentType() = delete;
+    constexpr static std::string_view TEXT_HTML = "text/html"sv;
+    constexpr static std::string_view JSON = "application/json"sv;
+};
+
+// Запрос, тело которого представлено в виде строки
+using StringRequest = http::request<http::string_body>;
+// Ответ, тело которого представлено в виде строки
+using StringResponse = http::response<http::string_body>;
+
+StringResponse MakeStringResponse(http::status status, std::string_view body, unsigned http_version,
+                                  bool keep_alive, std::string_view content_type) {
+    StringResponse response(status, http_version);
+    response.set(http::field::content_type, content_type);
+    response.body() = body;
+    response.content_length(body.size());
+    response.keep_alive(keep_alive);
+    return response;
+}
+
 class RequestHandler {
-public:
-    explicit RequestHandler(model::Game& game)
-        : game_{game} {
-    }
+   public:
+    explicit RequestHandler(model::Game& game) : game_{game} {}
 
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
@@ -18,9 +41,21 @@ public:
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
         // Обработать запрос request и отправить ответ, используя send
+        if (!req.target().start_with("/api/")) {
+            boost::json::object response_json;
+            response_json["code"] = "badRequest";
+            response_json["message"] = "Bad Request";
+
+            StringResponse response =
+                MakeStringResponse(http::status::bad_request, boost::json::serialize(response_json),
+                                   req.version(), req.keep_alive(), ContentType::JSON);
+            send(std::move(response));
+        }
+
+        if (req.target().sr)
     }
 
-private:
+   private:
     model::Game& game_;
 };
 

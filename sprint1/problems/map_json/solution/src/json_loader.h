@@ -3,7 +3,6 @@
 #include <filesystem>
 
 #include "model.h"
-#include "boost_json.cpp"
 
 namespace json_loader {
 
