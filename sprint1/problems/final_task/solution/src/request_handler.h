@@ -1,7 +1,10 @@
 #pragma once
+#include <sys/stat.h>
+
 #include "boost/json/array.hpp"
 #include "boost/json/object.hpp"
 #include "boost/json/serialize.hpp"
+#include "json_keys.h"
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
 #include <boost/asio/ip/tcp.hpp>
@@ -25,6 +28,12 @@ struct ContentType {
     constexpr static std::string_view JSON = "application/json"sv;
 };
 
+struct Endpoint {
+    Endpoint() = delete;
+    constexpr static std::string_view MAPS = "/api/v1/maps"sv;
+    constexpr static std::string_view API = "/api/"sv;
+};
+
 using StringRequest = http::request<http::string_body>;
 using StringResponse = http::response<http::string_body>;
 
@@ -42,7 +51,7 @@ inline StringResponse MakeJsonError(http::status status, std::string_view code,
     return MakeStringResponse(status, body, version, keep_alive, ContentType::JSON);
 }
 
-inline bool IsApi(std::string_view target) { return target.starts_with("/api/"sv); }
+inline bool IsApi(std::string_view target) { return target.starts_with(Endpoint::API); }
 
 inline std::optional<std::string_view> ExtractMapId(std::string_view target) {
     const auto pos = target.find_last_of('/');
@@ -57,13 +66,13 @@ inline boost::json::array GetRoadsFromMap(const model::Map* map) {
     boost::json::array roads;
     for (const auto& road : map->GetRoads()) {
         boost::json::object road_obj;
-        road_obj["x0"] = road.GetStart().x;
-        road_obj["y0"] = road.GetStart().y;
+        road_obj[keys::kX0] = road.GetStart().x;
+        road_obj[keys::kY0] = road.GetStart().y;
 
         if (road.IsHorizontal()) {
-            road_obj["x1"] = road.GetEnd().x;
+            road_obj[keys::kX1] = road.GetEnd().x;
         } else {
-            road_obj["y1"] = road.GetEnd().y;
+            road_obj[keys::kY1] = road.GetEnd().y;
         }
         roads.push_back(road_obj);
     }
@@ -74,10 +83,10 @@ inline boost::json::array GetBuildingsFromMap(const model::Map* map) {
     boost::json::array buildings;
     for (const auto& building : map->GetBuildings()) {
         boost::json::object building_obj;
-        building_obj["x"] = building.GetBounds().position.x;
-        building_obj["y"] = building.GetBounds().position.y;
-        building_obj["w"] = building.GetBounds().size.width;
-        building_obj["h"] = building.GetBounds().size.height;
+        building_obj[keys::kX] = building.GetBounds().position.x;
+        building_obj[keys::kY] = building.GetBounds().position.y;
+        building_obj[keys::kW] = building.GetBounds().size.width;
+        building_obj[keys::kH] = building.GetBounds().size.height;
 
         buildings.push_back(building_obj);
     }
@@ -88,11 +97,11 @@ inline boost::json::array GetOfficesFromMap(const model::Map* map) {
     boost::json::array offices;
     for (const auto& office : map->GetOffices()) {
         boost::json::object office_obj;
-        office_obj["id"] = *office.GetId();
-        office_obj["x"] = office.GetPosition().x;
-        office_obj["y"] = office.GetPosition().y;
-        office_obj["offsetX"] = office.GetOffset().dx;
-        office_obj["offsetY"] = office.GetOffset().dy;
+        office_obj[keys::kId] = *office.GetId();
+        office_obj[keys::kX] = office.GetPosition().x;
+        office_obj[keys::kY] = office.GetPosition().y;
+        office_obj[keys::kOffsetX] = office.GetOffset().dx;
+        office_obj[keys::kOffsetY] = office.GetOffset().dy;
 
         offices.push_back(office_obj);
     }
@@ -127,15 +136,15 @@ class RequestHandler {
             return;
         }
 
-        if (target == "/api/v1/maps"sv) {
+        if (target == Endpoint::MAPS) {
             auto maps = game_.GetMaps();
             boost::json::array array;
             for (const auto& map : maps) {
                 boost::json::object map_obj;
                 std::string id = *map.GetId();
                 std::string name = map.GetName();
-                map_obj["id"] = id;
-                map_obj["name"] = name;
+                map_obj[keys::kId] = id;
+                map_obj[keys::kName] = name;
                 array.push_back(map_obj);
             }
             send(MakeStringResponse(http::status::ok, boost::json::serialize(array), version,
@@ -143,7 +152,7 @@ class RequestHandler {
             return;
         }
 
-        if (target.starts_with("/api/v1/maps/"sv)) {
+        if (target.starts_with(Endpoint::MAPS)) {
             auto id = detail::ExtractMapId(target);
 
             if (id) {
@@ -156,17 +165,17 @@ class RequestHandler {
                 }
 
                 boost::json::object response_body;
-                response_body["id"] = *map->GetId();
-                response_body["name"] = map->GetName();
+                response_body[keys::kId] = *map->GetId();
+                response_body[keys::kName] = map->GetName();
 
                 boost::json::array roads = detail::GetRoadsFromMap(map);
-                response_body["roads"] = std::move(roads);
+                response_body[keys::kRoads] = std::move(roads);
 
                 boost::json::array buildings = detail::GetBuildingsFromMap(map);
-                response_body["buildings"] = std::move(buildings);
+                response_body[keys::kBuildings] = std::move(buildings);
 
                 boost::json::array offices = detail::GetOfficesFromMap(map);
-                response_body["offices"] = std::move(offices);
+                response_body[keys::kOffices] = std::move(offices);
 
                 send(MakeStringResponse(http::status::ok, boost::json::serialize(response_body),
                                         version, keep_alive, ContentType::JSON));

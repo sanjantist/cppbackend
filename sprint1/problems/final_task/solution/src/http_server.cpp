@@ -1,7 +1,6 @@
 #include "http_server.h"
 
 #include <boost/asio/dispatch.hpp>
-#include <iostream>
 
 namespace http_server {
 
@@ -13,7 +12,8 @@ void SessionBase::Run() {
 void SessionBase::Read() {
     request_ = {};
     stream_.expires_after(30s);
-    // Считываем request_ из stream_, используя buffer_ для хранения считанных данных
+    // Считываем request_ из stream_, используя buffer_ для хранения считанных
+    // данных
     http::async_read(stream_, buffer_, request_,
                      // По окончании операции будет вызван метод OnRead
                      beast::bind_front_handler(&SessionBase::OnRead, GetSharedThis()));
@@ -44,8 +44,5 @@ void SessionBase::OnWrite(bool close, beast::error_code ec, std::size_t bytes_wr
     Read();
 }
 
-void SessionBase::Close() {
-    beast::error_code ec;
-    stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
-}
+void SessionBase::Close() { stream_.socket().shutdown(tcp::socket::shutdown_send); }
 }  // namespace http_server
