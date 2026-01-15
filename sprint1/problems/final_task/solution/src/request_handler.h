@@ -66,13 +66,13 @@ inline boost::json::array GetRoadsFromMap(const model::Map* map) {
     boost::json::array roads;
     for (const auto& road : map->GetRoads()) {
         boost::json::object road_obj;
-        road_obj[keys::kX0] = road.GetStart().x;
-        road_obj[keys::kY0] = road.GetStart().y;
+        road_obj[std::string(keys::kX0)] = road.GetStart().x;
+        road_obj[std::string(keys::kY0)] = road.GetStart().y;
 
         if (road.IsHorizontal()) {
-            road_obj[keys::kX1] = road.GetEnd().x;
+            road_obj[std::string(keys::kX1)] = road.GetEnd().x;
         } else {
-            road_obj[keys::kY1] = road.GetEnd().y;
+            road_obj[std::string(keys::kY1)] = road.GetEnd().y;
         }
         roads.push_back(road_obj);
     }
@@ -83,10 +83,10 @@ inline boost::json::array GetBuildingsFromMap(const model::Map* map) {
     boost::json::array buildings;
     for (const auto& building : map->GetBuildings()) {
         boost::json::object building_obj;
-        building_obj[keys::kX] = building.GetBounds().position.x;
-        building_obj[keys::kY] = building.GetBounds().position.y;
-        building_obj[keys::kW] = building.GetBounds().size.width;
-        building_obj[keys::kH] = building.GetBounds().size.height;
+        building_obj[std::string(keys::kX)] = building.GetBounds().position.x;
+        building_obj[std::string(keys::kY)] = building.GetBounds().position.y;
+        building_obj[std::string(keys::kW)] = building.GetBounds().size.width;
+        building_obj[std::string(keys::kH)] = building.GetBounds().size.height;
 
         buildings.push_back(building_obj);
     }
@@ -97,11 +97,11 @@ inline boost::json::array GetOfficesFromMap(const model::Map* map) {
     boost::json::array offices;
     for (const auto& office : map->GetOffices()) {
         boost::json::object office_obj;
-        office_obj[keys::kId] = *office.GetId();
-        office_obj[keys::kX] = office.GetPosition().x;
-        office_obj[keys::kY] = office.GetPosition().y;
-        office_obj[keys::kOffsetX] = office.GetOffset().dx;
-        office_obj[keys::kOffsetY] = office.GetOffset().dy;
+        office_obj[std::string(keys::kId)] = *office.GetId();
+        office_obj[std::string(keys::kX)] = office.GetPosition().x;
+        office_obj[std::string(keys::kY)] = office.GetPosition().y;
+        office_obj[std::string(keys::kOffsetX)] = office.GetOffset().dx;
+        office_obj[std::string(keys::kOffsetY)] = office.GetOffset().dy;
 
         offices.push_back(office_obj);
     }
@@ -143,8 +143,8 @@ class RequestHandler {
                 boost::json::object map_obj;
                 std::string id = *map.GetId();
                 std::string name = map.GetName();
-                map_obj[keys::kId] = id;
-                map_obj[keys::kName] = name;
+                map_obj[std::string(keys::kId)] = id;
+                map_obj[std::string(keys::kName)] = name;
                 array.push_back(map_obj);
             }
             send(MakeStringResponse(http::status::ok, boost::json::serialize(array), version,
@@ -165,17 +165,17 @@ class RequestHandler {
                 }
 
                 boost::json::object response_body;
-                response_body[keys::kId] = *map->GetId();
-                response_body[keys::kName] = map->GetName();
+                response_body[std::string(keys::kId)] = *map->GetId();
+                response_body[std::string(keys::kName)] = map->GetName();
 
                 boost::json::array roads = detail::GetRoadsFromMap(map);
-                response_body[keys::kRoads] = std::move(roads);
+                response_body[std::string(keys::kRoads)] = std::move(roads);
 
                 boost::json::array buildings = detail::GetBuildingsFromMap(map);
-                response_body[keys::kBuildings] = std::move(buildings);
+                response_body[std::string(keys::kBuildings)] = std::move(buildings);
 
                 boost::json::array offices = detail::GetOfficesFromMap(map);
-                response_body[keys::kOffices] = std::move(offices);
+                response_body[std::string(keys::kOffices)] = std::move(offices);
 
                 send(MakeStringResponse(http::status::ok, boost::json::serialize(response_body),
                                         version, keep_alive, ContentType::JSON));

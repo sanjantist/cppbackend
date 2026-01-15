@@ -1,24 +1,24 @@
 #pragma once
-#include <string>
+#include <string_view>
 
 namespace keys {
 
-inline constexpr std::string kOffices = "offices";
-inline constexpr std::string kBuildings = "buildings";
-inline constexpr std::string kRoads = "roads";
+inline constexpr std::string_view kOffices = "offices";
+inline constexpr std::string_view kBuildings = "buildings";
+inline constexpr std::string_view kRoads = "roads";
 
-inline constexpr std::string kId = "id";
-inline constexpr std::string kName = "name";
+inline constexpr std::string_view kId = "id";
+inline constexpr std::string_view kName = "name";
 
-inline constexpr std::string kX = "x";
-inline constexpr std::string kY = "y";
-inline constexpr std::string kW = "w";
-inline constexpr std::string kH = "h";
-inline constexpr std::string kOffsetX = "offsetX";
-inline constexpr std::string kOffsetY = "offsetY";
-inline constexpr std::string kX0 = "x0";
-inline constexpr std::string kY0 = "y0";
-inline constexpr std::string kX1 = "x1";
-inline constexpr std::string kY1 = "y1";
+inline constexpr std::string_view kX = "x";
+inline constexpr std::string_view kY = "y";
+inline constexpr std::string_view kW = "w";
+inline constexpr std::string_view kH = "h";
+inline constexpr std::string_view kOffsetX = "offsetX";
+inline constexpr std::string_view kOffsetY = "offsetY";
+inline constexpr std::string_view kX0 = "x0";
+inline constexpr std::string_view kY0 = "y0";
+inline constexpr std::string_view kX1 = "x1";
+inline constexpr std::string_view kY1 = "y1";
 
 }  // namespace keys
