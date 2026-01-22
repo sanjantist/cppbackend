@@ -283,6 +283,9 @@ class RequestHandler {
                 return;
             }
         }
+
+        send(detail::MakeJsonError(http::status::bad_request, "badRequest"sv, "Bad request"sv,
+                                   version, keep_alive));
     }
 
     template <typename Body, typename Allocator, typename Send>
