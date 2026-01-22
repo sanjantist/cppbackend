@@ -16,7 +16,7 @@ using namespace std::literals;
 
 #define LOG(...) Logger::GetInstance().Log(__VA_ARGS__)
 
-inline constexpr std::string LOG_DIR = "/var/log/";
+inline constexpr std::string_view LOG_DIR = "/var/log/";
 
 class Logger {
     auto GetTime() const {
@@ -71,7 +71,7 @@ class Logger {
         // перевод строки, чтобы flush/строка была целиком
         oss << '\n';
 
-        const std::string path = LOG_DIR + GetFileTimeStamp() + ".log";
+        const std::string path = std::string(LOG_DIR) + GetFileTimeStamp() + ".log";
         std::ofstream ofs(path, std::ios::out | std::ios::app);
         if (!ofs) {
             throw std::runtime_error("can't open file");
