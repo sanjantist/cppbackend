@@ -702,6 +702,7 @@ FodyWeavers.xsd
 
 # VS Code files for those working on multiple tools
 *.code-workspace
+*.vscode
 
 # Local History for Visual Studio Code
 
