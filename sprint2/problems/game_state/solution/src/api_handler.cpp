@@ -39,6 +39,49 @@ inline std::optional<std::string_view> ExtractBearerToken(const http::fields& he
     return v;
 }
 
+using PlayersIds = std::vector<int>;
+
+inline StringResponse MethodNotAllowed(unsigned version, bool keep_alive, std::string_view allow,
+                                       std::string_view msg = "Invalid method"sv) {
+    auto resp = MakeJsonError(http::status::method_not_allowed, "invalidMethod"sv, msg, version,
+                              keep_alive);
+    resp.set(http::field::allow, allow);
+    return resp;
+}
+
+template <class Fn>
+StringResponse ExecuteIfGetOrHead(http::verb method, unsigned version, bool keep_alive,
+                                  Fn&& action) {
+    if (method != http::verb::get && method != http::verb::head) {
+        return MethodNotAllowed(version, keep_alive, "GET, HEAD"sv, "Invalid method"sv);
+    }
+    return std::forward<Fn>(action)();
+}
+
+template <class Fn>
+StringResponse ExecuteAuthorized(const http::fields& headers, unsigned version, bool keep_alive,
+                                 app::Application& app, Fn&& action) {
+    auto token = ExtractBearerToken(headers);
+    if (!token) {
+        return MakeJsonError(http::status::unauthorized, "invalidToken"sv,
+                             "Authorization header is missing"sv, version, keep_alive);
+    }
+
+    std::string_view token_sv = *token;
+    if (!IsValidTokenFormat(token_sv)) {
+        return MakeJsonError(http::status::unauthorized, "invalidToken"sv, "Invalid token"sv,
+                             version, keep_alive);
+    }
+
+    auto players = app.GetPlayers(token_sv);
+    if (!players) {
+        return MakeJsonError(http::status::unauthorized, "unknownToken"sv,
+                             "Player token has not been found"sv, version, keep_alive);
+    }
+
+    return std::forward<Fn>(action)(token_sv, *players);
+}
+
 }  // namespace
 
 StringResponse ApiHandler::HandleImpl(http::verb method, std::string_view target,
@@ -185,118 +228,79 @@ StringResponse ApiHandler::HandleMapDataRequest(std::string_view target, unsigne
 
 StringResponse ApiHandler::HandlePlayersRequest(http::verb method, const http::fields& headers,
                                                 unsigned int version, bool keep_alive) {
-    if (method != http::verb::get && method != http::verb::head) {
-        auto response = MakeJsonError(http::status::method_not_allowed, "invalidMethod"sv,
-                                      "Invalid method", version, keep_alive);
-        response.set(http::field::allow, "GET, HEAD");
-        return response;
-    }
+    return ExecuteIfGetOrHead(method, version, keep_alive, [&] {
+        return ExecuteAuthorized(headers, version, keep_alive, application_,
+                                 [&](std::string_view /*token*/, const auto& players_ids) {
+                                     json::object out;
+                                     for (int id : players_ids) {
+                                         if (auto* p = application_.GetPlayer(id)) {
+                                             out[std::to_string(id)] = {{"name", p->GetName()}};
+                                         }
+                                     }
 
-    auto token = ExtractBearerToken(headers);
-    if (!token) {
-        return MakeJsonError(http::status::unauthorized, "invalidToken"sv,
-                             "Authorization header is missing"sv, version, keep_alive);
-    }
-
-    std::string_view token_sv = *token;
-    if (!IsValidTokenFormat(token_sv)) {
-        return MakeJsonError(http::status::unauthorized, "invalidToken"sv, "Invalid token"sv,
-                             version, keep_alive);
-    }
-
-    auto players = application_.GetPlayers(token_sv);
-    if (!players) {
-        return MakeJsonError(http::status::unauthorized, "unknownToken"sv,
-                             "Player token has not been found"sv, version, keep_alive);
-    }
-
-    json::object out;
-    for (int id : *players) {
-        if (auto* p = application_.GetPlayer(id)) {
-            out[std::to_string(id)] = {{"name", p->GetName()}};
-        }
-    }
-
-    if (method == http::verb::head) {
-        return MakeStringResponse(http::status::ok, ""sv, version, keep_alive, ContentType::JSON);
-    }
-
-    return MakeStringResponse(http::status::ok, json::serialize(out), version, keep_alive,
-                              ContentType::JSON);
+                                     if (method == http::verb::head) {
+                                         return MakeStringResponse(http::status::ok, ""sv, version,
+                                                                   keep_alive, ContentType::JSON);
+                                     }
+                                     return MakeStringResponse(http::status::ok,
+                                                               json::serialize(out), version,
+                                                               keep_alive, ContentType::JSON);
+                                 });
+    });
 }
 
-StringResponse ApiHandler::HandleStateRequest(http::verb method, std::string_view body,
+StringResponse ApiHandler::HandleStateRequest(http::verb method, std::string_view /*body*/,
                                               const http::fields& headers, unsigned int version,
                                               bool keep_alive) {
-    if (method != http::verb::get && method != http::verb::head) {
-        auto response = MakeJsonError(http::status::method_not_allowed, "invalidMethod"sv,
-                                      "Invalid method"sv, version, keep_alive);
-        response.set(http::field::allow, "GET, HEAD");
-        return response;
-    }
+    return ExecuteIfGetOrHead(method, version, keep_alive, [&] {
+        return ExecuteAuthorized(
+            headers, version, keep_alive, application_,
+            [&](std::string_view /*token*/, const auto& players_ids) {
+                json::object out;
+                json::object players_info;
 
-    auto token = ExtractBearerToken(headers);
-    if (!token) {
-        return MakeJsonError(http::status::unauthorized, "invalidToken"sv,
-                             "Authorization header is missing"sv, version, keep_alive);
-    }
+                for (int id : players_ids) {
+                    json::object player_info;
 
-    std::string_view token_sv = *token;
-    if (!IsValidTokenFormat(token_sv)) {
-        return MakeJsonError(http::status::unauthorized, "invalidToken"sv, "Invalid token"sv,
-                             version, keep_alive);
-    }
+                    if (auto* p = application_.GetPlayer(id)) {
+                        const auto& dog = p->GetDog();
 
-    auto players = application_.GetPlayers(token_sv);
-    if (!players) {
-        return MakeJsonError(http::status::unauthorized, "unknownToken"sv,
-                             "Player token has not been found"sv, version, keep_alive);
-    }
+                        json::array pos{dog.GetPosition().x, dog.GetPosition().y};
+                        player_info["pos"] = std::move(pos);
 
-    json::object out;
-    json::object players_info;
-    for (int id : *players) {
-        json::object player_info;
-        if (auto* p = application_.GetPlayer(id)) {
-            auto dog = p->GetDog();
+                        json::array speed{dog.GetVelocity().vx, dog.GetVelocity().vy};
+                        player_info["speed"] = std::move(speed);
 
-            json::array dog_pos;
-            dog_pos.push_back(dog.GetPosition().x);
-            dog_pos.push_back(dog.GetPosition().y);
-            player_info["pos"] = dog_pos;
+                        std::string dir = "U"s;
+                        switch (dog.GetDirection()) {
+                            case model::DogDirection::East:
+                                dir = "R"s;
+                                break;
+                            case model::DogDirection::West:
+                                dir = "L"s;
+                                break;
+                            case model::DogDirection::North:
+                                dir = "U"s;
+                                break;
+                            case model::DogDirection::South:
+                                dir = "D"s;
+                                break;
+                        }
+                        player_info["dir"] = dir;
+                    }
 
-            json::array dog_speed;
-            dog_speed.push_back(dog.GetVelocity().vx);
-            dog_speed.push_back(dog.GetVelocity().vy);
-            player_info["speed"] = dog_speed;
+                    players_info[std::to_string(id)] = std::move(player_info);
+                }
 
-            std::string dir_str;
-            auto direction = dog.GetDirection();
-            switch (direction) {
-                case model::DogDirection::East:
-                    dir_str = "R";
-                    break;
-                case model::DogDirection::West:
-                    dir_str = "L";
-                    break;
-                case model::DogDirection::North:
-                    dir_str = "U";
-                    break;
-                case model::DogDirection::South:
-                    dir_str = "D";
-                    break;
-            }
-            player_info["dir"] = dir_str;
-        }
-        players_info[std::to_string(id)] = player_info;
-    }
-    out["players"] = players_info;
+                out["players"] = std::move(players_info);
 
-    if (method == http::verb::head) {
-        return MakeStringResponse(http::status::ok, ""sv, version, keep_alive, ContentType::JSON);
-    }
-
-    return MakeStringResponse(http::status::ok, json::serialize(out), version, keep_alive,
-                              ContentType::JSON);
+                if (method == http::verb::head) {
+                    return MakeStringResponse(http::status::ok, ""sv, version, keep_alive,
+                                              ContentType::JSON);
+                }
+                return MakeStringResponse(http::status::ok, json::serialize(out), version,
+                                          keep_alive, ContentType::JSON);
+            });
+    });
 }
 }  // namespace http_handler

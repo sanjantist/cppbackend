@@ -29,12 +29,15 @@ public:
 
         LogRequest(req, ip);
 
-        auto wrapped_send = [start, ip, &send](auto&& resp) mutable {
+        using SendT = std::decay_t<Send>;
+        SendT send_copy(std::forward<Send>(send));
+
+        auto wrapped_send = [start, ip, send = std::move(send_copy)](auto&& resp) mutable {
             LogResponse(ip, start, resp);
             send(std::forward<decltype(resp)>(resp));
         };
 
-        decorated_(std::move(req), wrapped_send);
+        decorated_(std::move(req), std::move(wrapped_send));
     }
 
 private:

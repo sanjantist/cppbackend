@@ -42,10 +42,12 @@ class RequestHandler {
         const std::string_view target = req.target();
 
         if (url::IsApi(target)) {
-            net::dispatch(app_strand_,
-                          [this, req = std::move(req), send = std::forward<Send>(send)]() mutable {
-                              send(api_handler_.Handle(std::move(req)));
-                          });
+            using Req = http::request<Body, http::basic_fields<Allocator>>;
+            using SendT = std::decay_t<Send>;
+            net::dispatch(app_strand_, [this, req = Req(std::move(req)),
+                                        send = SendT(std::forward<Send>(send))]() mutable {
+                send(api_handler_.Handle(std::move(req)));
+            });
         } else {
             file_handler_.Handle(std::move(req), std::forward<Send>(send));
         }
