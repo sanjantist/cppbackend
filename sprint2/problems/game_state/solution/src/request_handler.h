@@ -1,21 +1,18 @@
 #pragma once
-#include <sys/stat.h>
-
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/strand.hpp>
-#include <filesystem>
-#include <utility>
-
-#include "application.h"
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
+#include <boost/asio/dispatch.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/strand.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/json.hpp>
 #include <cctype>
+#include <filesystem>
 #include <string_view>
+#include <utility>
 
 #include "api_handler.h"
+#include "application.h"
 #include "file_handler.h"
 #include "http_server.h"
 
@@ -39,7 +36,7 @@ class RequestHandler {
 
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>> &&req, Send &&send) {
-        const std::string_view target = req.target();
+        std::string_view target = req.target();
 
         if (url::IsApi(target)) {
             using Req = http::request<Body, http::basic_fields<Allocator>>;

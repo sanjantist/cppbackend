@@ -48,5 +48,6 @@ add_executable(game_server
 	src/dog.cpp
 )
 
+target_compile_definitions(game_server PRIVATE BOOST_BEAST_USE_STD_STRING_VIEW)
 target_include_directories(game_server PRIVATE CONAN_PKG::boost)
 target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost)

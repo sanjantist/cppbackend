@@ -8,8 +8,8 @@
 #include "application.h"
 #include "json_loader.h"
 #include "logging.h"
-#include "request_handler.h"
 #include "logging_request_handler.h"
+#include "request_handler.h"
 #include "sdk.h"
 
 using namespace std::literals;
@@ -65,7 +65,6 @@ int main(int argc, const char *argv[]) {
         http_handler::RequestHandler handler{ioc, application, doc_root};
         http_handler::LoggingRequestHandler<http_handler::RequestHandler> logging_handler{handler};
 
-
         const int port = 8080;
         const auto address = net::ip::make_address("0.0.0.0");
 
@@ -78,9 +77,9 @@ int main(int argc, const char *argv[]) {
             data["port"] = port;
             data["address"] = address.to_string();
 
-            BOOST_LOG_TRIVIAL(info)
-                << boost::log::add_value(app_logging::additional_data, boost::json::value(std::move(data)))
-                << "server started"sv;
+            BOOST_LOG_TRIVIAL(info) << boost::log::add_value(app_logging::additional_data,
+                                                             boost::json::value(std::move(data)))
+                                    << "server started"sv;
         }
 
         http_server::ServeHttp(ioc, {address, port}, [&logging_handler](auto &&req, auto &&send) {
@@ -93,20 +92,20 @@ int main(int argc, const char *argv[]) {
             boost::json::object data;
             data["code"] = 0;
 
-            BOOST_LOG_TRIVIAL(info)
-                << boost::log::add_value(app_logging::additional_data, boost::json::value(std::move(data)))
-                << "server exited";
+            BOOST_LOG_TRIVIAL(info) << boost::log::add_value(app_logging::additional_data,
+                                                             boost::json::value(std::move(data)))
+                                    << "server exited";
         }
-        
+
     } catch (const std::exception &ex) {
         {
             boost::json::object data;
             data["code"] = static_cast<std::int64_t>(EXIT_FAILURE);
             data["exception"] = ex.what();
 
-            BOOST_LOG_TRIVIAL(info)
-                << boost::log::add_value(app_logging::additional_data, boost::json::value(std::move(data)))
-                << "server exited";
+            BOOST_LOG_TRIVIAL(info) << boost::log::add_value(app_logging::additional_data,
+                                                             boost::json::value(std::move(data)))
+                                    << "server exited";
         }
 
         return EXIT_FAILURE;

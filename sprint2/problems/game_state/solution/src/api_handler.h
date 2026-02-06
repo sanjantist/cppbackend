@@ -1,4 +1,6 @@
 #pragma once
+#define BOOST_BEAST_USE_STD_STRING_VIEW
+
 #include <boost/beast/http.hpp>
 #include <boost/json.hpp>
 #include <string_view>
