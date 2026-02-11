@@ -1,4 +1,5 @@
 #include <boost/asio.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/program_options.hpp>
 #include <boost/program_options/options_description.hpp>
@@ -23,6 +24,7 @@
 using namespace std::literals;
 namespace net = boost::asio;
 namespace sys = boost::system;
+using net::ip::tcp;
 
 namespace {
 
@@ -123,6 +125,12 @@ int main(int argc, const char *argv[]) {
 
             const int port = 8080;
             const auto address = net::ip::make_address("0.0.0.0");
+            auto endpoint = net::ip::tcp::endpoint(address, port);
+            tcp::acceptor acceptor(net::make_strand(ioc));
+            acceptor.open(endpoint.protocol());
+            acceptor.set_option(net::socket_base::reuse_address(true));
+            acceptor.bind(endpoint);
+            acceptor.listen(net::socket_base::max_listen_connections);
 
             boost::json::object data;
             data["port"] = port;
@@ -140,11 +148,12 @@ int main(int argc, const char *argv[]) {
             }
 
             ticker->Start();
-            http_server::ServeHttp(ioc, {address, port},
-                                   [&logging_handler](auto &&req, auto &&send) {
-                                       logging_handler(std::forward<decltype(req)>(req),
-                                                       std::forward<decltype(send)>(send));
-                                   });
+            http_server::ServeHttp(
+                ioc, std::move(acceptor),
+                [&logging_handler](auto &&req, auto &&send, const std::string& client_ip) {
+                    logging_handler(std::forward<decltype(req)>(req),
+                                    std::forward<decltype(send)>(send), client_ip);
+                });
 
             RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
 

@@ -23,8 +23,8 @@ class Player {
 
    private:
     Id id_;
-    Dog dog_;
     std::weak_ptr<GameSession> session_;
+    Dog dog_;
 
     std::mt19937 gen_;
 };

@@ -40,13 +40,24 @@ Dog SpawnDog(const Map& map, std::string name, std::mt19937& gen, bool randomize
     dog.SetPosition({(double)spawn_point.x, (double)spawn_point.y});
     return dog;
 }
+
+const Map& GetMapOrThrow(const std::weak_ptr<GameSession>& session) {
+    auto locked = session.lock();
+    if (!locked) {
+        throw std::runtime_error("Expired GameSession in Player ctor");
+    }
+    return locked->GetMap();
+}
 }  // namespace
 
 Player::Player(Id id, std::string name, std::weak_ptr<GameSession> session,
                bool randomize_dog_spawn)
     : id_(id),
-      dog_(SpawnDog(session.lock()->GetMap(), name, gen_, randomize_dog_spawn)),
-      session_(std::move(session)) {}
+      session_(std::move(session)),
+      dog_(SpawnDog(GetMapOrThrow(session_), std::move(name), gen_, randomize_dog_spawn)) {
+    std::random_device rd;
+    gen_ = std::mt19937(rd());
+}
 
 Player::Id Player::GetId() const noexcept { return id_; }
 

@@ -169,9 +169,8 @@ StringResponse ApiHandler::HandleJoinRequest(http::verb method, std::string_view
                              version, keep_alive);
     }
 
-    model::Map::Id map_id{map_id_str};
     try {
-        auto result = application_.JoinGame(user_name, *map_id);
+        auto result = application_.JoinGame(user_name, map_id_str);
 
         boost::json::object out;
         out["authToken"] = result.auth_token;

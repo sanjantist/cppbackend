@@ -8,7 +8,6 @@ Application::Application(model::Game game, bool randomize_dog_spawn, bool autoti
 
 Application::JoinResult Application::JoinGame(std::string user_name, std::string map_id_str) {
     model::Map::Id map_id{map_id_str};
-
     const auto* map = game_.FindMap(map_id);
     if (!map) {
         throw std::runtime_error("mapNotFound");

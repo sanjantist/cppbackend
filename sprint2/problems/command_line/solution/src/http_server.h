@@ -1,11 +1,11 @@
 #pragma once
-#include "sdk.h"
-
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <iostream>
+
+#include "sdk.h"
 
 namespace http_server {
 
@@ -66,38 +66,35 @@ template <typename RequestHandler>
 class Session : public SessionBase, public std::enable_shared_from_this<Session<RequestHandler>> {
    public:
     template <typename Handler>
-    Session(tcp::socket&& socket, Handler&& request_handler)
+    Session(tcp::socket&& socket, Handler&& request_handler, std::string&& client_ip)
         : SessionBase(std::move(socket)),
-          request_handler_(std::forward<Handler>(request_handler)) {}
+          request_handler_(std::forward<Handler>(request_handler)),
+          client_ip_(std::move(client_ip)) {}
 
    private:
     std::shared_ptr<SessionBase> GetSharedThis() override { return this->shared_from_this(); }
     void HandleRequest(HttpRequest&& request) override {
-        // Захватываем умный указатель на текущий объект Session в лямбде,
-        // чтобы продлить время жизни сессии до вызова лямбды.
-        // Используется generic-лямбда функция, способная принять response произвольного типа
-        request_handler_(std::move(request), [self = this->shared_from_this()](auto&& response) {
-            self->Write(std::move(response));
-        });
+        request_handler_(
+            std::move(request),
+            [self = this->shared_from_this()](auto&& response) {
+                self->Write(std::move(response));
+            },
+            client_ip_);
     }
 
    private:
     RequestHandler request_handler_;
+    const std::string client_ip_;
 };
 
 template <typename RequestHandler>
 class Listener : public std::enable_shared_from_this<Listener<RequestHandler>> {
    public:
     template <typename Handler>
-    Listener(net::io_context& ioc, const tcp::endpoint& endpoint, Handler&& handler)
+    Listener(net::io_context& ioc, tcp::acceptor&& acceptor, Handler&& handler)
         : ioc_(ioc),
-          acceptor_(net::make_strand(ioc)),
-          request_handler_(std::forward<Handler>(handler)) {
-        acceptor_.open(endpoint.protocol());
-        acceptor_.set_option(net::socket_base::reuse_address(true));
-        acceptor_.bind(endpoint);
-        acceptor_.listen(net::socket_base::max_listen_connections);
-    }
+          acceptor_(std::move(acceptor)),
+          request_handler_(std::forward<Handler>(handler)) {}
 
     void Run() { DoAccept(); }
 
@@ -113,13 +110,23 @@ class Listener : public std::enable_shared_from_this<Listener<RequestHandler>> {
             return ReportError(ec, "accept"sv);
         }
 
-        AsyncRunSession(std::move(socket));
+        beast::error_code ep_ec;
+        auto ep = socket.remote_endpoint(ep_ec);
+
+        std::string client_ip;
+        if (!ep_ec) {
+            client_ip = ep.address().to_string();
+        }
+
+        AsyncRunSession(std::move(socket), std::move(client_ip));
 
         DoAccept();
     }
 
-    void AsyncRunSession(tcp::socket&& socket) {
-        std::make_shared<Session<RequestHandler>>(std::move(socket), request_handler_)->Run();
+    void AsyncRunSession(tcp::socket&& socket, std::string&& client_ip) {
+        std::make_shared<Session<RequestHandler>>(std::move(socket), request_handler_,
+                                                  std::move(client_ip))
+            ->Run();
     }
 
    private:
@@ -129,10 +136,11 @@ class Listener : public std::enable_shared_from_this<Listener<RequestHandler>> {
 };
 
 template <typename RequestHandler>
-void ServeHttp(net::io_context& ioc, const tcp::endpoint& endpoint, RequestHandler&& handler) {
+void ServeHttp(net::io_context& ioc, tcp::acceptor&& acceptor, RequestHandler&& handler) {
     using MyListener = Listener<std::decay_t<RequestHandler>>;
 
-    std::make_shared<MyListener>(ioc, endpoint, std::forward<RequestHandler>(handler))->Run();
+    std::make_shared<MyListener>(ioc, std::move(acceptor), std::forward<RequestHandler>(handler))
+        ->Run();
 }
 
 }  // namespace http_server
