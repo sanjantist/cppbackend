@@ -12,10 +12,10 @@ DogPos GenerateRandomPointOnRoad(const Road& road, std::mt19937& gen) {
 
     if (road.IsHorizontal()) {
         std::uniform_real_distribution<double> dist(std::min(a.x, b.x), std::max(a.x, b.x));
-        return model::DogPos{dist(gen), a.y};
+        return model::DogPos{dist(gen), static_cast<double>(a.y)};
     } else {
         std::uniform_real_distribution<double> dist(std::min(a.y, b.y), std::max(a.y, b.y));
-        return model::DogPos{a.x, dist(gen)};
+        return model::DogPos{static_cast<double>(a.x), dist(gen)};
     }
 }
 
@@ -37,7 +37,7 @@ Dog SpawnDog(const Map& map, std::string name, std::mt19937& gen, bool randomize
     }
 
     auto spawn_point = map.GetRoads()[0].GetStart();
-    dog.SetPosition({(double)spawn_point.x, (double)spawn_point.y});
+    dog.SetPosition({static_cast<double>(spawn_point.x), static_cast<double>(spawn_point.y)});
     return dog;
 }
 

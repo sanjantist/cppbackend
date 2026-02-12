@@ -1,5 +1,7 @@
 #include "api_handler.h"
 
+#include <algorithm>
+#include <boost/system/system_error.hpp>
 #include <chrono>
 #include <string>
 #include <string_view>
@@ -19,11 +21,7 @@ inline bool IsHex(char c) {
 }
 
 inline bool IsValidTokenFormat(std::string_view token) {
-    if (token.size() != 32) return false;
-    for (char c : token) {
-        if (!IsHex(c)) return false;
-    }
-    return true;
+    return token.size() == 32 && std::all_of(token.begin(), token.end(), IsHex);
 }
 
 inline std::optional<std::string_view> ExtractBearerToken(const http::fields& headers) {
@@ -339,9 +337,9 @@ StringResponse ApiHandler::HandleActionRequest(http::verb method, std::string_vi
 
             try {
                 parsed = json::parse(boost::json::string_view(body.data(), body.size()));
-            } catch (...) {
-                return MakeJsonError(http::status::bad_request, "invalidArgument"sv,
-                                     "Failed to parse action"sv, version, keep_alive);
+            } catch (boost::system::system_error& e) {
+                return MakeJsonError(http::status::bad_request, "invalidArgument"sv, e.what(),
+                                     version, keep_alive);
             }
 
             if (!parsed.is_object()) {
@@ -420,7 +418,7 @@ StringResponse ApiHandler::HandleTickRequest(http::verb method, std::string_view
 
         auto ms = std::chrono::milliseconds{json_body.at("timeDelta").as_int64()};
         application_.Tick(ms);
-    } catch (...) {
+    } catch (boost::system::system_error& e) {
         return MakeJsonError(http::status::bad_request, "invalidArgument"sv,
                              "Failed to parse tick request JSON"sv, version, keep_alive);
     }
